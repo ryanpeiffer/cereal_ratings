@@ -3,8 +3,21 @@
 
 #project: shiny app that allows users to rate cereals based on health and taste.
 
+#===========================================================================
+# setup
+#===========================================================================
 
+#load libraries
 library(shiny)
+
+
+#read in image filenames
+image_files <- list.files("images")
+
+
+#===========================================================================
+# shiny app
+#===========================================================================
 
 ui <- fluidPage(
 
@@ -12,8 +25,7 @@ ui <- fluidPage(
 
     sidebarLayout(
         sidebarPanel(
-            h3("Please rate (cereal name):"),
-            #TODO make this use the cereal name lol
+            
             sliderInput("health",
                         "Health",
                         min = 1,
@@ -27,27 +39,33 @@ ui <- fluidPage(
                         value = 5),
             
             actionButton("submit",
-                        "Submit my ratings!")
+                        "Submit my rating!")
         ),
 
-        # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("distPlot")
+            h3(textOutput("cereal_name")),
+            imageOutput("image")
         )
     )
 )
 
 
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$health + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    #pick a cereal!
+    cereal_file <- sample(image_files, 1)
+    cereal_name <- substr(cereal_file, 1, nchar(cereal_file)-4)
+    output$cereal_name <- renderText({
+        paste("Please rate:", cereal_name)
     })
+    
+    #display photo of cereal box
+    output$image <- renderImage({
+        return(list(
+            src = paste0("images/", cereal_file)
+        ))
+        
+    }, deleteFile = FALSE)
+    
 }
 
 # Run the application 
