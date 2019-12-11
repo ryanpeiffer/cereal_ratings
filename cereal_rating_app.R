@@ -10,33 +10,9 @@
 #load libraries
 library(shiny)
 
-#define function for selecting a cereal
-pick_cereal <- function(image_files) {
-    if(length(image_files) > 0) {
-        
-        #pick a cereal from list of valid options
-        cereal_file <- sample(image_files, 1)
-        cereal_name <- substr(cereal_file, 1, nchar(cereal_file)-4)
-        
-        #text to rate the cereal
-        text <- paste("Please rate:", cereal_name)
-        
-        #display a picture
-        image <- TRUE
-        
-    } else {
-        cereal_file <- NULL
-        
-        #text to indicate no cereals remain
-        text <- "You have rated all the cereals! Thanks!"
-        
-        #do not display a picture
-        image <- FALSE
-        
-    }
-    
-    return (list(cereal_file, text, image))
-}
+#user inputs
+image_folder <- "images/test"
+
 
 
 #===========================================================================
@@ -67,8 +43,9 @@ ui <- fluidPage(
         ),
 
         mainPanel(
-            h3(textOutput("cereal_name")),
-            imageOutput("image")
+            h3(textOutput("output_text")),
+            imageOutput("image"),
+            textOutput("files_left")
         )
     )
 )
@@ -77,60 +54,40 @@ ui <- fluidPage(
 server <- function(input, output, session) {
    
      #read in list of image files
-    image_files <- list.files("images/test")
+    image_files <- reactiveVal(list.files(image_folder))
     
-    
-    ### generate initial view of ShinyApp ###
-    #pick a cereal and store respective variables with descriptive names
-    vals <- pick_cereal(image_files)
-    cereal_file <- unlist(vals[1])
-    display_text <- unlist(vals[2])
-    display_image <- unlist(vals[3])
-
-    #generate text output for the cereal
-    output$cereal_name <- renderText({image_files})
-
-    #generate image output for the cereal
-    if(display_image) {
-        output$image <- renderImage({
-            return(list(src = paste0("images/test/", cereal_file)))
-        }, deleteFile = FALSE)
-    } else {
-        output$image <- NULL
-    }
-    ### end of initial view ###
-    
-    
-    
-    ### updates for when user clicks button ###
-    observeEvent(input$submit, {
-        #TODO save the user's ratings
-        
-        #remove current cereal from list
-        image_files <- image_files[!image_files %in% cereal_file]
-        
-        #select a new cereal
-        vals <- pick_cereal(image_files)
-        cereal_file <- unlist(vals[1])
-        display_text <- unlist(vals[2])
-        display_image <- unlist(vals[3])
-        
-        
-        ## UPDATE ALL DISPLAYS ##
-        #text output
-        output$cereal_name <- renderText({image_files})
-
-        #generate image output for the cereal
-        if(display_image) {
-            output$image <- renderImage({
-                return(list(src = paste0("images/test/", cereal_file)))
-            }, deleteFile = FALSE)
-        } else {
-            output$image <- NULL
+    #pick a new cereal whenever the submit button is pressed
+    cereal_file <- eventReactive(input$submit, {
+        cereal <- ""
+        if(length(image_files()) > 0) {
+            cereal <- sample(image_files(), 1)
         }
-
         
-        #TODO reset input sliders?
+        #remove the chosen cereal from list so we cant pick it again
+        image_files(image_files()[!image_files() %in% cereal])
+        
+        return(cereal)
+    }, ignoreNULL = FALSE) #ignoreNULL = false allows it to pick one upon startup
+
+    
+    #generate text output
+    output$output_text <- renderText({
+        cereal_name <- substr(cereal_file(), 1, nchar(cereal_file()) - 4)
+        paste("Please rate:", cereal_name)
+    })
+    #TODO when out of cereals, display "You have rated all of the cereals. Thanks!"
+
+    
+    #generate image output
+    output$image <- renderImage({
+        return(list(src = paste(image_folder, cereal_file(), sep = '/')))
+    }, deleteFile = FALSE)
+    #TODO make the error not show when we reach the end
+    
+
+    #list of files for debugging
+    output$files_left <- renderText({
+        paste(image_files())
     })
 
 }
